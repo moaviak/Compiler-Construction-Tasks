@@ -1,23 +1,24 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
-namespace CC_LAB_MID
+namespace CompleteStringProcessor
 {
-    internal class question1
+    class Program
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Enter a string in the format: x:value; y:value; z:value; result: operation;");
-            string input = Console.ReadLine();
+            Console.WriteLine("Complete String Processor");
+            Console.WriteLine("=========================");
 
-            // Process the input string
-            ProcessString51(input);
+            // The input string with specific format
+            string inputString = "x:5; y:1; z:{userinput}; result: x * y + z;";
+            Console.WriteLine($"Processing string: \"{inputString}\"");
 
-            Console.WriteLine("Press any key to exit...");
+            // Process the string
+            ProcessString51(inputString);
+
+            Console.WriteLine("\nPress any key to exit...");
             Console.ReadKey();
         }
 
@@ -25,38 +26,29 @@ namespace CC_LAB_MID
         {
             try
             {
+                // Dictionary to store variables and their values
+                var variables = new Dictionary<string, double>();
+
                 // Extract variable declarations using regex
-                var variablePattern = new Regex(@"(\w+):([^;]+);");
-                var resultPattern = new Regex(@"result:\s*([^;]+);");
+                string pattern = @"(\w+):([^;]+);";
+                var matches = Regex.Matches(input, pattern);
 
-                var variableMatches = variablePattern.Matches(input);
-                var resultMatch = resultPattern.Match(input);
-
-                if (!resultMatch.Success)
-                {
-                    Console.WriteLine("Error: Result operation not found in the input string.");
-                    return;
-                }
-
-                // Create a dictionary to store variables and their values
-                var variables = new System.Collections.Generic.Dictionary<string, double>();
-
-                // Process each variable match
-                foreach (Match match in variableMatches)
+                foreach (Match match in matches)
                 {
                     string varName = match.Groups[1].Value.Trim();
 
-                    // Skip the "result" part as it's not a variable
+                    // Skip "result" as it's not a variable
                     if (varName.ToLower() == "result")
                         continue;
 
-                    string varValueStr = match.Groups[2].Value.Trim();
+                    string varValue = match.Groups[2].Value.Trim();
 
-                    // If the value is "userinput", prompt the user to enter a value
-                    if (varValueStr.ToLower() == "userinput")
+                    // Check if this variable needs user input
+                    if (varValue == "{userinput}")
                     {
                         Console.Write($"Enter value for {varName}: ");
                         string userInput = Console.ReadLine();
+
                         if (double.TryParse(userInput, out double userValue))
                         {
                             variables[varName] = userValue;
@@ -67,14 +59,13 @@ namespace CC_LAB_MID
                             return;
                         }
                     }
-                    // Otherwise, try to parse the value directly
-                    else if (double.TryParse(varValueStr, out double value))
+                    else if (double.TryParse(varValue, out double value))
                     {
                         variables[varName] = value;
                     }
                     else
                     {
-                        Console.WriteLine($"Error: Invalid value for {varName}: {varValueStr}");
+                        Console.WriteLine($"Error: Invalid value for {varName}: {varValue}");
                         return;
                     }
 
@@ -82,7 +73,14 @@ namespace CC_LAB_MID
                     Console.WriteLine($"{varName} = {variables[varName]}");
                 }
 
-                // Get the result expression
+                // Extract the result expression
+                Match resultMatch = Regex.Match(input, @"result:\s*([^;]+);");
+                if (!resultMatch.Success)
+                {
+                    Console.WriteLine("Error: Result expression not found in the input string.");
+                    return;
+                }
+
                 string resultExpression = resultMatch.Groups[1].Value.Trim();
 
                 // Evaluate the expression
@@ -97,10 +95,12 @@ namespace CC_LAB_MID
             }
         }
 
-        static double EvaluateExpression(string expression, System.Collections.Generic.Dictionary<string, double> variables)
+        static double EvaluateExpression(string expression, Dictionary<string, double> variables)
         {
-            // Replace variable names with their values
+            // Clone the expression for modification
             string modifiedExpression = expression;
+
+            // Replace variable names with their values
             foreach (var variable in variables)
             {
                 modifiedExpression = Regex.Replace(modifiedExpression,
@@ -108,7 +108,7 @@ namespace CC_LAB_MID
                     variable.Value.ToString());
             }
 
-            // Parse the expression part by part
+            // Parse the expression with operations in correct order
             try
             {
                 // Handle multiplication first
@@ -117,28 +117,33 @@ namespace CC_LAB_MID
 
                 foreach (string addPart in addParts)
                 {
-                    if (addPart.Contains("*"))
+                    string trimmedPart = addPart.Trim();
+
+                    if (trimmedPart.Contains("*"))
                     {
-                        string[] mulParts = addPart.Split('*');
+                        string[] mulParts = trimmedPart.Split('*');
                         double product = 1;
+
                         foreach (string part in mulParts)
                         {
                             product *= double.Parse(part.Trim());
                         }
+
                         total += product;
                     }
                     else
                     {
-                        total += double.Parse(addPart.Trim());
+                        total += double.Parse(trimmedPart);
                     }
                 }
 
                 return total;
             }
-            catch (FormatException)
+            catch (FormatException ex)
             {
                 Console.WriteLine($"Failed to evaluate expression: {modifiedExpression}");
-                Console.WriteLine("Original expression: " + expression);
+                Console.WriteLine($"Original expression: {expression}");
+                Console.WriteLine($"Error: {ex.Message}");
                 throw;
             }
         }
